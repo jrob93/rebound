@@ -1,11 +1,11 @@
 /**
  * @file 	boundary.c
- * @brief 	Implementation of all boundary conditions. 
+ * @brief 	Implementation of all boundary conditions.
  * @author 	Hanno Rein <hanno@hanno-rein.de>
  *
  * @details 	The code supports different boundary conditions.
- * 
- * 
+ *
+ *
  * @section LICENSE
  * Copyright (c) 2015 Hanno Rein, Shangfei Liu
  *
@@ -64,6 +64,15 @@ void reb_boundary_check(struct reb_simulation* const r){
 					removep = 1;
 				}
 				if (removep==1){
+					
+					//----------------------------------------------------------
+					//store details of removed particle i in file
+					FILE* of = fopen("ejections.txt","a+"); //writes to file, not append!
+					//record time, index, pos, vel, mass, size
+					fprintf(of,"%.18e\t%d\t%.18e\t%.18e\t%.18e\t%.18e\t%.18e\t%.18e\t%.18e\t%.18e\n",r->t,i,particles[i].x,particles[i].y,particles[i].z,particles[i].vx,particles[i].vy,particles[i].vz,particles[i].m,particles[i].r);
+					fclose(of);
+					//----------------------------------------------------------
+
                     // If hermes calculate energy offset in global
                     if(r->track_energy_offset){
                         double Ei = reb_tools_energy(r);
@@ -86,8 +95,8 @@ void reb_boundary_check(struct reb_simulation* const r){
 		{
 			// The offset of ghostcell is time dependent.
 			const double OMEGA = r->ri_sei.OMEGA;
-			const double offsetp1 = -fmod(-1.5*OMEGA*boxsize.x*r->t+boxsize.y/2.,boxsize.y)-boxsize.y/2.; 
-			const double offsetm1 = -fmod( 1.5*OMEGA*boxsize.x*r->t-boxsize.y/2.,boxsize.y)+boxsize.y/2.; 
+			const double offsetp1 = -fmod(-1.5*OMEGA*boxsize.x*r->t+boxsize.y/2.,boxsize.y)-boxsize.y/2.;
+			const double offsetm1 = -fmod( 1.5*OMEGA*boxsize.x*r->t-boxsize.y/2.,boxsize.y)+boxsize.y/2.;
 			struct reb_particle* const particles = r->particles;
 #pragma omp parallel for schedule(guided)
 			for (int i=0;i<N;i++){
@@ -170,16 +179,16 @@ struct reb_ghostbox reb_boundary_get_ghostbox(struct reb_simulation* const r, in
 			gb.shiftvx = 0.;
 			gb.shiftvy = -1.5*(double)i*OMEGA*r->boxsize.x;
 			gb.shiftvz = 0.;
-			// The shift in the y direction is time dependent. 
+			// The shift in the y direction is time dependent.
 			double shift;
 			if (i==0){
-				shift = -fmod(gb.shiftvy*r->t,r->boxsize.y); 
+				shift = -fmod(gb.shiftvy*r->t,r->boxsize.y);
 			}else{
 				if (i>0){
-					shift = -fmod(gb.shiftvy*r->t-r->boxsize.y/2.,r->boxsize.y)-r->boxsize.y/2.; 
+					shift = -fmod(gb.shiftvy*r->t-r->boxsize.y/2.,r->boxsize.y)-r->boxsize.y/2.;
 				}else{
-					shift = -fmod(gb.shiftvy*r->t+r->boxsize.y/2.,r->boxsize.y)+r->boxsize.y/2.; 
-				}	
+					shift = -fmod(gb.shiftvy*r->t+r->boxsize.y/2.,r->boxsize.y)+r->boxsize.y/2.;
+				}
 			}
 			gb.shiftx = r->boxsize.x*(double)i;
 			gb.shifty = r->boxsize.y*(double)j-shift;
@@ -235,5 +244,3 @@ int reb_boundary_particle_is_in_box(const struct reb_simulation* const r, struct
 			return 1;
 	}
 }
-
-
