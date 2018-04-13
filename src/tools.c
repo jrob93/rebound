@@ -472,6 +472,8 @@ struct reb_particle reb_tools_orbit2d_to_particle(double G, struct reb_particle 
 	return reb_tools_orbit_to_particle(G, primary, m, a, e, inc, Omega, omega, f);
 }
 
+#define TINY 1.E-308 		///< Close to smallest representable floating point number, used for orbit calculation
+
 struct reb_particle reb_tools_orbit_to_particle_err(double G, struct reb_particle primary, double m, double a, double e, double inc, double Omega, double omega, double f, int* err){
 	if(e == 1.){
 		*err = 1; 		// Can't initialize a radial orbit with orbital elements.
@@ -497,6 +499,10 @@ struct reb_particle reb_tools_orbit_to_particle_err(double G, struct reb_particl
 		*err = 5;		// Unbound orbit can't have f set beyond the range allowed by the asymptotes set by the parabola.
 		return reb_particle_nan();
 	}
+    if(primary.m < TINY){
+        *err = 6;       // Primary has no mass.
+        return reb_particle_nan();
+    }
 
 	struct reb_particle p = {0};
 	p.m = m;
@@ -646,18 +652,30 @@ struct reb_orbit reb_tools_particle_to_orbit_err(double G, struct reb_particle p
 	// in the near-planar case, the true longitude is always well defined for the position, and pomega for the pericenter if e!= 0
 	// we therefore calculate those and calculate the remaining angles from them
 	if(o.inc < MIN_INC || o.inc > M_PI - MIN_INC){	// nearly planar.  Use longitudes rather than angles referenced to node for numerical stability.
-		o.pomega = acos2(ex, o.e, ey);		// cos pomega is dot product of x and e unit vectors.  Will = 0 if e=0.
-		o.theta = acos2(dx, o.d, dy);		// cos theta is dot product of x and r vectors (true longitude).  Will = 0 if e = 0.
+		o.theta = acos2(dx, o.d, dy);		// cos theta is dot product of x and r vectors (true longitude).
+        o.pomega = acos2(ex, o.e, ey);		// cos pomega is dot product of x and e unit vectors.  Will = 0 if e=0.
+
 		if(o.inc < M_PI/2.){
 			o.omega = o.pomega - o.Omega;
 			o.f = o.theta - o.pomega;
-			o.l = o.pomega + o.M;
+            if(o.e > MIN_ECC){              // pomega well defined
+			    o.l = o.pomega + o.M;
+            }
+            else{                           // when e << 1 and pomega ill defined, use l = theta+(M-f). M-f is O(e) so well behaved
+                o.l = o.theta - 2.*o.e*sin(o.f); // M-f from Murray & Dermott Eq 2.93. This way l->theta smoothly as e->0
+            }
 		}
 		else{
 			o.omega = o.Omega - o.pomega;
 			o.f = o.pomega - o.theta;
-			o.l = o.pomega - o.M;
+            if(o.e > MIN_ECC){              // pomega well defined
+			    o.l = o.pomega - o.M;
+            }
+            else{                           // when e << 1 and pomega ill defined, use l = theta+(M-f). M-f is O(e) so well behaved
+                o.l = o.theta + 2.*o.e*sin(o.f); // M-f from Murray & Dermott Eq 2.93 (retrograde changes sign). This way l->theta smoothly as e->0
+            }
 		}
+
 	}
 	// in the non-planar case, we can't calculate the broken angles from vectors like above.  omega+f is always well defined, and omega if e!=0
 	else{
@@ -667,13 +685,23 @@ struct reb_orbit reb_tools_particle_to_orbit_err(double G, struct reb_particle p
 			o.pomega = o.Omega + o.omega;
 			o.f = wpf - o.omega;
 			o.theta = o.Omega + wpf;
-			o.l = o.pomega + o.M;
+            if(o.e > MIN_ECC){              // pomega well defined
+			    o.l = o.pomega + o.M;
+            }
+            else{                           // when e << 1 and pomega ill defined, use l = theta+(M-f). M-f is O(e) so well behaved
+                o.l = o.theta - 2.*o.e*sin(o.f); // M-f from Murray & Dermott Eq 2.93. This way l->theta smoothly as e->0
+            }
 		}
 		else{
 			o.pomega = o.Omega - o.omega;
 			o.f = wpf - o.omega;
 			o.theta = o.Omega - wpf;
-			o.l = o.pomega - o.M;
+            if(o.e > MIN_ECC){              // pomega well defined
+			    o.l = o.pomega - o.M;
+            }
+            else{                           // when e << 1 and pomega ill defined, use l = theta+(M-f). M-f is O(e) so well behaved
+                o.l = o.theta + 2.*o.e*sin(o.f); // M-f from Murray & Dermott Eq 2.93 (retrograde changes sign). This way l->theta smoothly as e->0
+            }
 		}
 	}
 

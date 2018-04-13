@@ -457,6 +457,7 @@ enum REB_STATUS {
     REB_EXIT_ESCAPE = 4,        ///< The integration ends early because a particle escaped (see exit_max_distance)  
     REB_EXIT_USER = 5,          ///< User caused exit, simulation did not finish successfully.
     REB_EXIT_SIGINT = 6,        ///< SIGINT received. Simulation stopped.
+    REB_EXIT_COLLISION = 7,     ///< The integration ends early because two particles collided. 
 };
 
 
@@ -598,7 +599,6 @@ enum REB_BINARY_FIELD_TYPE {
     REB_BINARY_FIELD_TYPE_MERCURIUS_ISSYNCHRON = 120,
     REB_BINARY_FIELD_TYPE_MERCURIUS_M0 = 121,
     REB_BINARY_FIELD_TYPE_MERCURIUS_RHILL = 122,
-    REB_BINARY_FIELD_TYPE_MERCURIUS_RHILLALLOCATEDN = 123,
     REB_BINARY_FIELD_TYPE_MERCURIUS_KEEPUNSYNC = 124,
     REB_BINARY_FIELD_TYPE_END = 9999,
 };
@@ -832,6 +832,7 @@ struct reb_simulation {
         REB_COLLISION_DIRECT = 1,   ///< Direct collision search O(N^2)
         REB_COLLISION_TREE = 2,     ///< Tree based collision search O(N log(N))
         REB_COLLISION_MERCURIUS = 3,///< Direct collision search optimized for MERCURIUS
+        REB_COLLISION_LINE = 4,     ///< Direct collision search O(N^2), looks for collisions by assuming a linear path over the last timestep
         } collision;
     /**
      * @brief Available integrators
@@ -1102,6 +1103,11 @@ struct reb_particle* reb_get_particle_by_hash(struct reb_simulation* const r, ui
  * @param r The rebound simulation to be considered
  */
 void reb_run_heartbeat(struct reb_simulation* const r);
+
+/**
+ * @brief Resolve collision by simply halting the integration and setting r->status=REB_EXIT_COLLISION (Default)
+ */
+int reb_collision_resolve_halt(struct reb_simulation* const r, struct reb_collision c);
 
 /**
  * @brief Hardsphere collision resolving routine (default).

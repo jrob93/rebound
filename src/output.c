@@ -209,8 +209,13 @@ void reb_save_dp7(struct reb_dp7* dp7, const int N3, FILE* of){
 }
 
 // Macro to write a single field to a binary file.
+// Memset forces padding to be set to 0 (not necessary but
+// helps when comparing binary files)
 #define WRITE_FIELD(typename, value, length) {\
-        struct reb_binary_field field = {.type = REB_BINARY_FIELD_TYPE_##typename, .size = (length)};\
+        struct reb_binary_field field;\
+        memset(&field,0,sizeof(struct reb_binary_field));\
+        field.type = REB_BINARY_FIELD_TYPE_##typename;\
+        field.size = (length);\
         fwrite(&field,sizeof(struct reb_binary_field),1,of);\
         fwrite(value,field.size,1,of);\
     }
@@ -331,8 +336,7 @@ void reb_output_binary(struct reb_simulation* r, char* filename){
     WRITE_FIELD(MERCURIUS_SAFEMODE, &r->ri_mercurius.safe_mode,         sizeof(unsigned int));
     WRITE_FIELD(MERCURIUS_ISSYNCHRON, &r->ri_mercurius.is_synchronized, sizeof(unsigned int));
     WRITE_FIELD(MERCURIUS_M0,       &r->ri_mercurius.m0,                sizeof(double));
-    WRITE_FIELD(MERCURIUS_RHILLALLOCATEDN, &r->ri_mercurius.rhillallocatedN, sizeof(unsigned int));
-    WRITE_FIELD(MERCURIUS_RHILL,    &r->ri_mercurius.rhill,             sizeof(double)*r->ri_mercurius.rhillallocatedN);
+    WRITE_FIELD(MERCURIUS_RHILL,    r->ri_mercurius.rhill,             sizeof(double)*r->ri_mercurius.rhillallocatedN);
     WRITE_FIELD(MERCURIUS_KEEPUNSYNC, &r->ri_mercurius.keep_unsynchronized,  sizeof(unsigned int));
     int functionpointersused = 0;
     if (r->coefficient_of_restitution ||
@@ -344,7 +348,21 @@ void reb_output_binary(struct reb_simulation* r, char* filename){
         functionpointersused = 1;
     }
     WRITE_FIELD(FUNCTIONPOINTERS,   &functionpointersused,              sizeof(int));
-    WRITE_FIELD(PARTICLES,          r->particles,                       sizeof(struct reb_particle)*r->N);
+    {
+        struct reb_binary_field field;
+        memset(&field,0,sizeof(struct reb_binary_field));
+        field.type = REB_BINARY_FIELD_TYPE_PARTICLES;
+        field.size = sizeof(struct reb_particle)*r->N;
+        fwrite(&field,sizeof(struct reb_binary_field),1,of);
+        // output one particle at a time to sanitize pointers.
+        for (int l=0;l<r->N;l++){
+            struct reb_particle op = r->particles[l];
+            op.c = NULL;
+            op.ap = NULL;
+            op.sim = NULL;
+            fwrite(&op,sizeof(struct reb_particle),1,of);
+        }
+    } 
     if (r->var_config){
         WRITE_FIELD(VARCONFIG,      r->var_config,                      sizeof(struct reb_variational_configuration)*r->var_config_N);
     }

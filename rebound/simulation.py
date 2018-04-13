@@ -1,5 +1,5 @@
 from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
-from . import clibrebound, Escape, NoParticles, Encounter, SimulationError, ParticleNotFound
+from . import clibrebound, Escape, NoParticles, Encounter, Collision, SimulationError, ParticleNotFound
 from .particle import Particle
 from .units import units_convert_particle, check_units, convert_G
 from .tools import hash as rebhash
@@ -23,7 +23,7 @@ import types
 INTEGRATORS = {"ias15": 0, "whfast": 1, "sei": 2, "leapfrog": 4, "hermes": 5, "none": 7, "janus": 8, "mercurius": 9}
 BOUNDARIES = {"none": 0, "open": 1, "periodic": 2, "shear": 3}
 GRAVITIES = {"none": 0, "basic": 1, "compensated": 2, "tree": 3, "mercurius": 4}
-COLLISIONS = {"none": 0, "direct": 1, "tree": 2, "mercurius": 3}
+COLLISIONS = {"none": 0, "direct": 1, "tree": 2, "mercurius": 3, "line": 4}
 VISUALIZATIONS = {"none": 0, "opengl": 1, "webgl": 2}
 COORDINATES = {"jacobi": 0, "democraticheliocentric": 1, "whds": 2}
 BINARY_WARNINGS = [
@@ -795,6 +795,7 @@ class Simulation(Structure):
         - ``'direct'``
         - ``'tree'``
         - ``'mercurius'`` 
+        - ``'direct'``
         
         Check the online documentation for a full description of each of the modules. 
         """
@@ -1108,7 +1109,7 @@ class Simulation(Structure):
                     raise AttributeError("Each line requires 8 floats corresponding to mass, radius, position (x,y,z) and velocity (x,y,z).")
 
 # Orbit calculation
-    def calculate_orbits(self, primary=None, heliocentric=None, barycentric=None):
+    def calculate_orbits(self, primary=None, jacobi_masses=False, heliocentric=None, barycentric=None):
         """ 
         Calculate orbital parameters for all partices in the simulation.
         By default this functions returns the orbits in Jacobi coordinates. 
@@ -1119,7 +1120,9 @@ class Simulation(Structure):
         ----------
 
         primary     : rebound.Particle, optional
-            Set the primary against which to reference the osculating orbit. default(use Jacobi center of mass)
+            Set the primary against which to reference the osculating orbit. Default(use Jacobi center of mass)
+        jacobi_masses: bool
+            Whether to use jacobi primary mass in orbit calculation. (Default: False)
         heliocentric: bool, DEPRECATED
             To calculate heliocentric elements, pass primary=sim.particles[0]
         barycentric : bool, DEPRECATED
@@ -1129,7 +1132,6 @@ class Simulation(Structure):
         -------
         Returns an array of Orbits of length N-1.
         """
-        _particles_tmp = self.particles
         orbits = []
        
         if heliocentric is not None or barycentric is not None:
@@ -1137,15 +1139,22 @@ class Simulation(Structure):
 
         if primary is None:
             jacobi = True
-            primary = _particles_tmp[0]
+            primary = self.particles[0]
+            clibrebound.reb_get_com_of_pair.restype = Particle
         else:
             jacobi = False
 
-        clibrebound.reb_get_com_of_pair.restype = Particle
-        for i in range(1,self.N_real):
-            orbits.append(_particles_tmp[i].calculate_orbit(primary=primary))
-            if jacobi is True:
-                primary = clibrebound.reb_get_com_of_pair(primary, _particles_tmp[i])
+        for p in self.particles[1:self.N_real]:
+            if jacobi_masses is True:
+                interior_mass = primary.m
+                # orbit conversion uses mu=G*(p.m+primary.m) so set prim.m=Mjac-m so mu=G*Mjac
+                primary.m = self.particles[0].m*(p.m + interior_mass)/interior_mass - p.m
+                orbits.append(p.calculate_orbit(primary=primary))
+                primary.m = interior_mass # back to total mass of interior bodies to update com
+            else:
+                orbits.append(p.calculate_orbit(primary=primary))
+            if jacobi is True: # update com to include current particle for next iteration
+                primary = clibrebound.reb_get_com_of_pair(primary, p)
 
         return orbits
 
@@ -1378,6 +1387,8 @@ class Simulation(Structure):
                 raise Escape("User caused exit. Simulation did not finish.") # should not occur in python
             if ret_value == 6:
                 raise KeyboardInterrupt
+            if ret_value == 7:
+                raise Collision("Two particles collided (d < r1+r2)")
         else:
             debug.integrate_other_package(tmax,exact_finish_time)
         self.process_messages()
