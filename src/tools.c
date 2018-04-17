@@ -97,6 +97,37 @@ double reb_tools_energy(const struct reb_simulation* const r){
 
     return e_kin + e_pot + r->energy_offset;
 }
+// -----------------------------------------------------------------------------
+void reb_tools_energy_out(const struct reb_simulation* const r){
+// Here we modify reb_tools_energy() from rebound/src/tools.c to output
+// Saves the kinetic energy and potential energy of each particle to a file
+// Note that the sum of all values of _e_pot = 2 x PE of cloud (counting pairs twice)
+    const int N = r->N;
+    const struct reb_particle* restrict const particles = r->particles;
+		double _e_kin = 0.;
+		double _e_pot = 0.;
+
+		FILE* of = fopen("energy.txt","w");
+
+    for (int i=0;i<N;i++){
+				// for each particle calculate its kinetic and potential energy
+        struct reb_particle pi = particles[i];
+        _e_kin = 0.5 * pi.m * (pi.vx*pi.vx + pi.vy*pi.vy + pi.vz*pi.vz); //KE of particle
+				_e_pot=0.0; //Reset particle PE to zero
+				for (int j=0;j<N;j++){
+						if (j!=i) { //Calculate PE due to every other particle
+							struct reb_particle pj = particles[j];
+							double dx = pi.x - pj.x;
+							double dy = pi.y - pj.y;
+							double dz = pi.z - pj.z;
+							_e_pot -= r->G*pj.m*pi.m/sqrt(dx*dx + dy*dy + dz*dz); //sums the PE on one particle, due to the PE of all other particles
+						}
+				}
+				fprintf(of,"%e\t%e\n",_e_kin,_e_pot); //print to file
+    }
+		fclose(of);
+}
+// -----------------------------------------------------------------------------
 
 struct reb_vec3d reb_tools_angular_momentum(const struct reb_simulation* const r){
 	const int N = r->N;
