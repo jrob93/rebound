@@ -131,7 +131,7 @@ void reb_collision_search(struct reb_simulation* const r){
 					struct reb_particle p1 = particles[i];
 					struct reb_ghostbox gborig = reb_boundary_get_ghostbox(r, gbx,gby,gbz);
 					struct reb_ghostbox gb = gborig;
-					// Precalculate shifted position 
+					// Precalculate shifted position
 					gb.shiftx += p1.x;
 					gb.shifty += p1.y;
 					gb.shiftz += p1.z;
@@ -141,14 +141,14 @@ void reb_collision_search(struct reb_simulation* const r){
 					// Loop over all particles again
 					for (int j=i+1;j<N;j++){
 						struct reb_particle p2 = particles[j];
-						double ax = gb.shiftx - p2.x; 
-						double ay = gb.shifty - p2.y; 
-						double az = gb.shiftz - p2.z; 
-						double dx = (gb.shiftvx - p2.vx); 
-						double dy = (gb.shiftvy - p2.vy); 
-						double dz = (gb.shiftvz - p2.vz); 
+						double ax = gb.shiftx - p2.x;
+						double ay = gb.shifty - p2.y;
+						double az = gb.shiftz - p2.z;
+						double dx = (gb.shiftvx - p2.vx);
+						double dy = (gb.shiftvy - p2.vy);
+						double dz = (gb.shiftvz - p2.vz);
                         double dn2 = dx*dx + dy*dy + dz*dz;
-						double sr2 = (p1.r + p2.r)*(p1.r + p2.r); 
+						double sr2 = (p1.r + p2.r)*(p1.r + p2.r);
                         double a = dn2;
                         double b = 2.*(ax*dx + ay*dy + az*dz);
                         double c = ax*ax + ay*ay + az*az - sr2;
@@ -524,7 +524,7 @@ static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const 
 		double dy = gb.shifty - c->y;
 		double dz = gb.shiftz - c->z;
 		double r2 = dx*dx + dy*dy + dz*dz;
-		double rp  = p1_r + r->max_radius[1] + 0.86602540378443*c->w;
+		double rp  = p1_r + r->max_radius[1] + 0.86602540378443*c->w; // Rein and Liu 2011 eq. 3
 		// Check if we need to decent into daughter cells
 		if (r2 < rp*rp ){
 			for (int o=0;o<8;o++){

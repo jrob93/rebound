@@ -17,7 +17,7 @@ try:
     ghash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii")
     ghash_arg = "-DGITHASH="+ghash.strip()
 except:
-    ghash_arg = "-DGITHASH=51c22fbdd1080127ba6b2d623afe01a53a0f8135" #GITHASHAUTOUPDATE
+    ghash_arg = "-DGITHASH=7f0ad72b1fa404d563339fbd6c0ef5edc7bb5a49" #GITHASHAUTOUPDATE
 
 extra_link_args=[]
 if sys.platform == 'darwin':
@@ -25,7 +25,7 @@ if sys.platform == 'darwin':
     vars = sysconfig.get_config_vars()
     vars['LDSHARED'] = vars['LDSHARED'].replace('-bundle', '-shared')
     extra_link_args=['-Wl,-install_name,@rpath/librebound'+suffix]
-    
+
 libreboundmodule = Extension('librebound',
                     sources = [ 'src/rebound.c',
                                 'src/integrator_ias15.c',
@@ -44,6 +44,7 @@ libreboundmodule = Extension('librebound',
                                 'src/derivatives.c',
                                 'src/tree.c',
                                 'src/particle.c',
+                                'src/binarydiff.c',
                                 'src/output.c',
                                 'src/input.c',
                                 'src/simulationarchive.c',
@@ -61,7 +62,7 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='rebound',
-    version='3.5.13',
+    version='3.6.1',
     description='An open-source multi-purpose N-body code',
     long_description=long_description,
     url='http://github.com/hannorein/rebound',

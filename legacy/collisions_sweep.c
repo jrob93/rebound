@@ -4,15 +4,15 @@
  * @author 	Hanno Rein <hanno@hanno-rein.de>
  *
  * @details 	The routines in this file implement a collision detection
- * method called line sweep. It is very fast if all dimensions except one 
+ * method called line sweep. It is very fast if all dimensions except one
  * are small. The algorithm is similar to the original algorithm proposed
  * by Bentley & Ottmann (1979) but does not maintain a binary search tree.
  * This is much faster as long as the number of particle trajectories
  * currently intersecting the plane is small.
  *
  * The sweeping direction in this implementation is x.
- * 
- * 
+ *
+ *
  * @section LICENSE
  * Copyright (c) 2011 Hanno Rein, Shangfei Liu
  *
@@ -57,10 +57,10 @@ int 	sweeps_init_done 	= 0;	/**< Used for initialisation of data structures. */
 //static inline double max(double a, double b){ return (b>a)?b:a;}
 static inline double sgn(const double a){ return (a>=0 ? 1. : -1); }
 
-/** 
+/**
  * This function checks if two particles colliding during one drift step.
- * @param pt1 reb_particle 1. 
- * @param pt2 reb_particle 2. 
+ * @param pt1 reb_particle 1.
+ * @param pt2 reb_particle 2.
  * @param proci Processor id (OpenMP) for this collision.
  * @param crossing Flag that is one if one of the particles crosses a boundary in this timestep.
  * @param ghostbox Ghostbox used in this collision.
@@ -73,7 +73,7 @@ void detect_collision_of_pair(int pt1, int pt2, int proci, int crossing, struct 
 struct xvalue {
 	double 	x;		// position along sweep axis
 	int 	inout;		// start or endpoint
-	int	nx;		
+	int	nx;
 	int 	crossing;	// crosses boundary
 	int 	pt;		// particle
 };
@@ -103,7 +103,7 @@ struct 	collisionlist* clist;	/**< Pointers to the collisions list of each proce
  */
 void add_line_to_xvsublist(double x1, double x2, int pt, int n, int proci, int crossing){
 	int N = sweepx[proci].N;
-	
+
 	if (N+2>sweepx[proci].Nmax){
 		sweepx[proci].Nmax 	+= 1024;
 		sweepx[proci].xvalues	= (struct xvalue*)realloc(sweepx[proci].xvalues,sweepx[proci].Nmax*sizeof(struct xvalue));
@@ -137,7 +137,7 @@ void add_line_to_xvlist(double x1, double x2, int pt, int n, int crossing){
 	}
 
 	if (procix1!=procix2){
-		double b = -boxsize.x/2.+boxsize.x/(double)sweeps_proc*(double)procix2; 
+		double b = -boxsize.x/2.+boxsize.x/(double)sweeps_proc*(double)procix2;
 		add_line_to_xvsublist(x1,b,pt,n,procix1,1);
 		add_line_to_xvsublist(b,x2,pt,n,procix2,1);
 	}else{
@@ -246,12 +246,12 @@ void reb_collision_search(void){
 		collisions_sweep_insertionsort_particles();
 #endif //TREE
 	}
-	for (int i=0;i<N;i++){
-		double oldx = particles[i].x-0.5*dt*particles[i].vx;	
-		double newx = particles[i].x+0.5*dt*particles[i].vx;	
+	for (int i=0;i<N;i++){ // Calculate the x coords for each particle, before and after drift step
+		double oldx = particles[i].x-0.5*dt*particles[i].vx;
+		double newx = particles[i].x+0.5*dt*particles[i].vx;
 		add_to_xvlist(oldx,newx,i);
 	}
-	
+
 	// Precalculate most comonly used ghostboxes
 	const struct ghostbox gb00  = boundaries_get_ghostbox(0,0,0);
 	const struct ghostbox gb0p1 = boundaries_get_ghostbox(0,1,0);
@@ -263,11 +263,11 @@ void reb_collision_search(void){
 #ifdef TREE
 		// Use quicksort when there is a tree. reb_particles are not pre-sorted.
 		qsort (sweepxi->xvalues, sweepxi->N, sizeof(struct xvalue), compare_xvalue);
-#else //TREE 
+#else //TREE
 		// Use insertionsort when there is a tree. reb_particles are pre-sorted.
-		collisions_sweep_insertionsort_xvaluelist(sweepxi);	
+		collisions_sweep_insertionsort_xvaluelist(sweepxi);
 #endif //TREE
-		
+
 		// SWEEPL: List of lines intersecting the plane.
 		struct xvaluelist sweepl = {NULL,0,0};
 
@@ -277,7 +277,7 @@ void reb_collision_search(void){
 				// Add event if start of line
 				if (sweepl.N>=sweepl.Nmax){
 					sweepl.Nmax +=32;
-		 			sweepl.xvalues = realloc(sweepl.xvalues,sizeof(struct xvalue)*sweepl.Nmax); 
+		 			sweepl.xvalues = realloc(sweepl.xvalues,sizeof(struct xvalue)*sweepl.Nmax);
 				}
 				sweepl.xvalues[sweepl.N] = xv;
 				// Check for collisions with other particles in SWEEPL
@@ -326,25 +326,25 @@ void reb_collision_search(void){
 void detect_collision_of_pair(int pt1, int pt2, int proci, int crossing, struct ghostbox gb){
 	struct reb_particle* p1 = &(particles[pt1]);
 	struct reb_particle* p2 = &(particles[pt2]);
-	double x  = p1->x  + gb.shiftx	- p2->x;
+	double x  = p1->x  + gb.shiftx	- p2->x; // Relative position
 	double y  = p1->y  + gb.shifty	- p2->y;
 	double z  = p1->z  + gb.shiftz	- p2->z;
-	double vx = p1->vx + gb.shiftvx	- p2->vx;
+	double vx = p1->vx + gb.shiftvx	- p2->vx; // Relative velocity
 	double vy = p1->vy + gb.shiftvy - p2->vy;
 	double vz = p1->vz + gb.shiftvz	- p2->vz;
 
-	double a = vx*vx + vy*vy + vz*vz;
+	double a = vx*vx + vy*vy + vz*vz; // Relative velocity magnitude squared: v^2
 	double b = 2.*(vx*x + vy*y + vz*z);
-	double rr = p1->r + p2->r;
+	double rr = p1->r + p2->r; // Sum of partticle radii: r1+r2
 	double c = -rr*rr + x*x + y*y + z*z;
 
 	double root = b*b-4.*a*c;
-	if (root>=0.){
+	if (root>=0.){ // Only check for collision if root is +ve (real solution to quadratic)
 		// Floating point optimized solution of a quadratic equation. Avoids cancelations.
 		double q = -0.5*(b+sgn(b)*sqrt(root));
 		double time1 = c/q;
 		double time2 = q/a;
-		if (time1>time2){
+		if (time1>time2){ // Ensure time1 is always less than time2
 			double tmp = time2;
 			time2=time1;
 			time1=tmp;
@@ -359,12 +359,12 @@ void detect_collision_of_pair(int pt1, int pt2, int proci, int crossing, struct 
 			c->p1		= pt1;
 			c->p2		= pt2;
 			c->gb	 	= gb;
-			if ( (time1>-dt/2. && time1<dt/2.)) { 
+			if ( (time1>-dt/2. && time1<dt/2.)) {
 				c->time 	= time1;
 			}else{
 				c->time 	= 0;
 			}
-				
+
 			c->crossing 	= crossing;
 			clisti->N++;
 		}
@@ -381,8 +381,8 @@ void collisions_resolve(void){
 	for (int proci=0;proci<sweeps_proc;proci++){
 		struct reb_collision* c = clist[proci].collisions;
 		int colN = clist[proci].N;
-	
-		// Randomize array.	
+
+		// Randomize array.
 		for(int i=0; i<colN; i++){
 			int j = rand()%colN;
 			struct reb_collision ctemp = c[i];
@@ -393,12 +393,12 @@ void collisions_resolve(void){
 
 		for(int i=0; i<colN; i++){
 			struct reb_collision c1= c[i];
-			particles[c1.p1].x -= c1.time*particles[c1.p1].vx; 
-			particles[c1.p1].y -= c1.time*particles[c1.p1].vy; 
-			particles[c1.p1].z -= c1.time*particles[c1.p1].vz; 
-			particles[c1.p2].x -= c1.time*particles[c1.p2].vx; 
-			particles[c1.p2].y -= c1.time*particles[c1.p2].vy; 
-			particles[c1.p2].z -= c1.time*particles[c1.p2].vz; 
+			particles[c1.p1].x -= c1.time*particles[c1.p1].vx;
+			particles[c1.p1].y -= c1.time*particles[c1.p1].vy;
+			particles[c1.p1].z -= c1.time*particles[c1.p1].vz;
+			particles[c1.p2].x -= c1.time*particles[c1.p2].vx;
+			particles[c1.p2].y -= c1.time*particles[c1.p2].vy;
+			particles[c1.p2].z -= c1.time*particles[c1.p2].vz;
 #ifdef OPENMP
 			if (c1.crossing){
 				omp_set_lock(&boundarylock);
@@ -410,12 +410,12 @@ void collisions_resolve(void){
 				omp_unset_lock(&boundarylock);
 			}
 #endif //OPENMP
-			particles[c1.p1].x += c1.time*particles[c1.p1].vx; 
-			particles[c1.p1].y += c1.time*particles[c1.p1].vy; 
-			particles[c1.p1].z += c1.time*particles[c1.p1].vz; 
-			particles[c1.p2].x += c1.time*particles[c1.p2].vx; 
-			particles[c1.p2].y += c1.time*particles[c1.p2].vy; 
-			particles[c1.p2].z += c1.time*particles[c1.p2].vz; 
+			particles[c1.p1].x += c1.time*particles[c1.p1].vx;
+			particles[c1.p1].y += c1.time*particles[c1.p1].vy;
+			particles[c1.p1].z += c1.time*particles[c1.p1].vz;
+			particles[c1.p2].x += c1.time*particles[c1.p2].vx;
+			particles[c1.p2].y += c1.time*particles[c1.p2].vy;
+			particles[c1.p2].z += c1.time*particles[c1.p2].vz;
 		}
 		clist[proci].N = 0;
 		sweepx[proci].N = 0;
@@ -424,4 +424,3 @@ void collisions_resolve(void){
 	omp_destroy_lock(&boundarylock);
 #endif //OPENMP
 }
-
