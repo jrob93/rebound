@@ -658,7 +658,7 @@ struct reb_hash_pointer_pair{
 /** @} */
 
 /**
- * @defgroup MainRebStructs 
+ * @defgroup MainRebStructs
  * @details These are the main REBOUND structures
  * @{
 */
@@ -1654,14 +1654,6 @@ struct reb_particle reb_particle_divide(struct reb_particle p1, double value);
 struct reb_simulation* reb_create_simulation_from_simulationarchive(struct reb_simulationarchive* sa, long snapshot);
 
 /**
-<<<<<<< HEAD
- * @brief Estimate the file size of a simulation using SimulationArchive.
- * @param r The simulation to be considered. Needs to have r->simulationarchive_interval set and particles need to be present in the simulation.
- * @param tmax Maximum integration time.
- * @returns Returns the approximate size of the SimulationArchive file in bytes.
- */
-long reb_simulationarchive_estimate_size(struct reb_simulation* const r, double tmax);
-=======
  * @brief Opens a SimulationArchive
  * @details This function opens a SimulationArchive file and creates an index to
  * find snapshots within the file. This may take a few seconds if there are many
@@ -1721,7 +1713,6 @@ void reb_free_simulationarchive_pointers(struct reb_simulationarchive* sa);
 
 /** @endcond */
 
->>>>>>> upstream/master
 /** @} */
 
 /**

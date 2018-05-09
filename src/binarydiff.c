@@ -35,8 +35,6 @@
 #include "binarydiff.h"
 
 #include "fmemopen.h"
-#import "open_memstream.h"
-
 
 void reb_binary_diff(FILE* f1, FILE* f2, char** bufp, size_t* sizep){
     if (!f1 || !f2){
