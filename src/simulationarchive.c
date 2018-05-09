@@ -2,7 +2,7 @@
  * @file 	simulationarchive.c
  * @brief 	Tools for creating and reading Simulation Archive binary files.
  * @author 	Hanno Rein <hanno@hanno-rein.de>
- * 
+ *
  * @section 	LICENSE
  * Copyright (c) 2016 Hanno Rein
  *
@@ -40,6 +40,8 @@
 #include "output.h"
 #include "integrator_ias15.h"
 
+#include "fmemopen.h"
+#import "open_memstream.h"
 
 void reb_create_simulation_from_simulationarchive_with_messages(struct reb_simulation* r, struct reb_simulationarchive* sa, long snapshot, enum reb_input_binary_messages* warnings){
     FILE* inf = sa->inf;
@@ -52,7 +54,7 @@ void reb_create_simulation_from_simulationarchive_with_messages(struct reb_simul
         *warnings |= REB_INPUT_BINARY_ERROR_OUTOFRANGE;
         return;
     }
-    
+
     // load original binary file
     reb_init_simulation(r);
     reb_reset_temporary_pointers(r);
@@ -75,7 +77,7 @@ void reb_create_simulation_from_simulationarchive_with_messages(struct reb_simul
         reb_free_simulation(r);
         return;
     }
-    if (r->simulationarchive_version<2){ 
+    if (r->simulationarchive_version<2){
         fread(&(r->t),sizeof(double),1,inf);
         fread(&(r->walltime),sizeof(double),1,inf);
         if (r->simulationarchive_auto_interval){
@@ -97,7 +99,7 @@ void reb_create_simulation_from_simulationarchive_with_messages(struct reb_simul
                         r->ri_janus.allocated_N = r->N;
                     }
                     fread(r->ri_janus.p_int,sizeof(struct reb_particle_int)*r->N,1,inf);
-                    reb_integrator_synchronize(r);  // get floating point coordinates 
+                    reb_integrator_synchronize(r);  // get floating point coordinates
                 }
                 break;
             case REB_INTEGRATOR_WHFAST:
@@ -240,9 +242,9 @@ void reb_read_simulationarchive_with_messages(struct reb_simulationarchive* sa, 
     }
     sa->filename = malloc(strlen(filename)+1);
     strcpy(sa->filename,filename);
-    
+
     // Get version
-    fseek(sa->inf, 0, SEEK_SET);  
+    fseek(sa->inf, 0, SEEK_SET);
     struct reb_binary_field field = {0};
     sa->version = 0;
     double t0 = 0;
@@ -258,7 +260,7 @@ void reb_read_simulationarchive_with_messages(struct reb_simulationarchive* sa, 
                     char readbuf[bufsize], curvbuf[bufsize];
                     const char* header = "REBOUND Binary File. Version: ";
                     sprintf(curvbuf,"%s%s",header+sizeof(struct reb_binary_field), reb_version_str);
-                    
+
                     objects += fread(readbuf,sizeof(char),bufsize,sa->inf);
                     // Note: following compares version, but ignores githash.
                     if(strncmp(readbuf,curvbuf,bufsize)!=0){
@@ -299,28 +301,28 @@ void reb_read_simulationarchive_with_messages(struct reb_simulationarchive* sa, 
             *warnings |= REB_INPUT_BINARY_ERROR_OUTOFRANGE;
             return;
         }
-        fseek(sa->inf, 0, SEEK_END);  
-        sa->nblobs = (ftell(sa->inf)-sa->size_first)/sa->size_snapshot+1; // +1 accounts for first binary 
+        fseek(sa->inf, 0, SEEK_END);
+        sa->nblobs = (ftell(sa->inf)-sa->size_first)/sa->size_snapshot+1; // +1 accounts for first binary
         sa->t = malloc(sizeof(double)*sa->nblobs);
         sa->offset = malloc(sizeof(uint32_t)*sa->nblobs);
         sa->t[0] = t0;
         sa->offset[0] = 0;
         for(long i=1;i<sa->nblobs;i++){
             double offset = sa->size_first+(i-1)*sa->size_snapshot;
-            fseek(sa->inf, offset, SEEK_SET);  
+            fseek(sa->inf, offset, SEEK_SET);
             fread(&(sa->t[i]),sizeof(double), 1, sa->inf);
             sa->offset[i] = offset;
         }
     }else{
         // New version
         struct reb_simulationarchive_blob blob = {0};
-        fseek(sa->inf, -sizeof(struct reb_simulationarchive_blob), SEEK_END);  
+        fseek(sa->inf, -sizeof(struct reb_simulationarchive_blob), SEEK_END);
         fread(&blob, sizeof(struct reb_simulationarchive_blob), 1, sa->inf);
         sa->nblobs = blob.index+1;
         sa->t = malloc(sizeof(double)*sa->nblobs);
         sa->offset = malloc(sizeof(uint32_t)*sa->nblobs);
-        fseek(sa->inf, 0, SEEK_SET);  
-        
+        fseek(sa->inf, 0, SEEK_SET);
+
         for(long i=0;i<sa->nblobs;i++){
             struct reb_binary_field field = {0};
             sa->offset[i] = ftell(sa->inf);
@@ -336,7 +338,7 @@ void reb_read_simulationarchive_with_messages(struct reb_simulationarchive* sa, 
                     default:
                         fseek(sa->inf,field.size,SEEK_CUR);
                         break;
-                        
+
                 }
             }while(field.type!=REB_BINARY_FIELD_TYPE_END);
             fread(&blob, sizeof(struct reb_simulationarchive_blob), 1, sa->inf);
@@ -354,7 +356,7 @@ void reb_read_simulationarchive_with_messages(struct reb_simulationarchive* sa, 
 }
 
 struct reb_simulationarchive* reb_open_simulationarchive(const char* filename){
-    struct reb_simulationarchive* sa = malloc(sizeof(struct reb_simulationarchive)); 
+    struct reb_simulationarchive* sa = malloc(sizeof(struct reb_simulationarchive));
     enum reb_input_binary_messages warnings = REB_INPUT_BINARY_WARNING_NONE;
     reb_read_simulationarchive_with_messages(sa, filename, &warnings);
     if (warnings & REB_INPUT_BINARY_ERROR_NOFILE){
@@ -378,7 +380,7 @@ void reb_close_simulationarchive(struct reb_simulationarchive* sa){
     free(sa);
 }
 
-    
+
 static int reb_simulationarchive_snapshotsize(struct reb_simulation* const r){
     int size_snapshot = 0;
     switch (r->integrator){
@@ -423,7 +425,7 @@ void reb_simulationarchive_heartbeat(struct reb_simulation* const r){
                 //Snap
                 reb_simulationarchive_snapshot(r, NULL);
             }
-        } 
+        }
     }
 }
 void reb_simulationarchive_snapshot(struct reb_simulation* const r, const char* filename){
@@ -528,7 +530,7 @@ void reb_simulationarchive_snapshot(struct reb_simulation* const r, const char* 
             }
             long size_old = ftell(of);
             char* buf_old = malloc(size_old);
-            fseek(of, 0, SEEK_SET);  
+            fseek(of, 0, SEEK_SET);
             fread(buf_old, size_old,1,of);
             FILE* old_file = fmemopen(buf_old, size_old, "rb");
 
@@ -540,21 +542,21 @@ void reb_simulationarchive_snapshot(struct reb_simulation* const r, const char* 
             _reb_output_binary_to_stream(r, new_file);
             fclose(new_file);
             new_file = fmemopen(buf_new, size_new, "rb");
-            
-            
+
+
             // Create file object containing diff
             char* buf_diff;
             size_t size_diff;
             reb_binary_diff(old_file, new_file, &buf_diff, &size_diff);
-            
+
             // Update blob info and Write diff to binary file
             struct reb_simulationarchive_blob blob = {0};
-            fseek(of, -sizeof(struct reb_simulationarchive_blob), SEEK_END);  
+            fseek(of, -sizeof(struct reb_simulationarchive_blob), SEEK_END);
             fread(&blob, sizeof(struct reb_simulationarchive_blob), 1, of);
             blob.offset_next = size_diff+sizeof(struct reb_binary_field);
-            fseek(of, -sizeof(struct reb_simulationarchive_blob), SEEK_END);  
+            fseek(of, -sizeof(struct reb_simulationarchive_blob), SEEK_END);
             fwrite(&blob, sizeof(struct reb_simulationarchive_blob), 1, of);
-            fwrite(buf_diff, size_diff, 1, of); 
+            fwrite(buf_diff, size_diff, 1, of);
             field.type = REB_BINARY_FIELD_TYPE_END;
             field.size = 0;
             fwrite(&field,sizeof(struct reb_binary_field), 1, of);
@@ -562,7 +564,7 @@ void reb_simulationarchive_snapshot(struct reb_simulation* const r, const char* 
             blob.offset_prev = blob.offset_next;
             blob.offset_next = 0;
             fwrite(&blob, sizeof(struct reb_simulationarchive_blob), 1, of);
-            
+
 
             fclose(of);
             fclose(new_file);
@@ -593,7 +595,7 @@ static int _reb_simulationarchive_automate_set_filename(struct reb_simulation* c
 void reb_simulationarchive_automate_interval(struct reb_simulation* const r, const char* filename, double interval){
     if(_reb_simulationarchive_automate_set_filename(r,filename)<0) return;
     if(r->simulationarchive_auto_interval != interval){
-        // Only update simulationarchive_next if interval changed. 
+        // Only update simulationarchive_next if interval changed.
         // This ensures that interrupted simulations will continue
         // after being restarted from a simulationarchive
         r->simulationarchive_auto_interval = interval;
@@ -604,11 +606,10 @@ void reb_simulationarchive_automate_interval(struct reb_simulation* const r, con
 void reb_simulationarchive_automate_walltime(struct reb_simulation* const r, const char* filename, double walltime){
     if(_reb_simulationarchive_automate_set_filename(r,filename)<0) return;
     if(r->simulationarchive_auto_walltime != walltime){
-        // Only update simulationarchive_next if interval changed. 
+        // Only update simulationarchive_next if interval changed.
         // This ensures that interrupted simulations will continue
         // after being restarted from a simulationarchive
         r->simulationarchive_auto_walltime = walltime;
         r->simulationarchive_next = r->walltime;
     }
 }
-

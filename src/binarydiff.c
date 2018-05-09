@@ -2,7 +2,7 @@
  * @file    binarydiff.c
  * @brief   Binary diff allows to compare binary snapshots.
  * @author  Hanno Rein <hanno@hanno-rein.de>
- * 
+ *
  * @section     LICENSE
  * Copyright (c) 2018 Hanno Rein
  *
@@ -34,12 +34,16 @@
 #include "tools.h"
 #include "binarydiff.h"
 
+#include "fmemopen.h"
+#import "open_memstream.h"
+
+
 void reb_binary_diff(FILE* f1, FILE* f2, char** bufp, size_t* sizep){
     if (!f1 || !f2){
         printf("Cannot read binary file.\n");
         return;
     }
-    
+
     long f10 = ftell(f1);
     long f20 = ftell(f2);
 
@@ -49,7 +53,7 @@ void reb_binary_diff(FILE* f1, FILE* f2, char** bufp, size_t* sizep){
         printf("fmemopen failed\n");
         return;
     }
-    
+
 
     long objects1 = 0;
     long objects2 = 0;
@@ -62,7 +66,7 @@ void reb_binary_diff(FILE* f1, FILE* f2, char** bufp, size_t* sizep){
     if(strcmp(readbuf1,readbuf2)!=0){
         printf("Header in binary files are different %s.\n", readbuf2);
     }
-    
+
     while(1){
         int bytesread = 0;
         struct reb_binary_field field1;
@@ -75,13 +79,13 @@ void reb_binary_diff(FILE* f1, FILE* f2, char** bufp, size_t* sizep){
         }
         struct reb_binary_field field2;
         bytesread = fread(&field2,sizeof(struct reb_binary_field),1,f2);
-        
+
         // Fields might not be in the same order.
         if (field1.type!=field2.type){
             // Will search for element in f2, starting at beginning just past header
-            // Note that we ignore all ADDITIONAL fields in f2 that were not present in f1 
+            // Note that we ignore all ADDITIONAL fields in f2 that were not present in f1
             fseek(f2, f20+64, SEEK_SET);
-            int notfound = 0; 
+            int notfound = 0;
             while(1) {
                 bytesread = fread(&field2,sizeof(struct reb_binary_field),1,f2);
                 if (bytesread == 0){
@@ -136,7 +140,7 @@ void reb_binary_diff(FILE* f1, FILE* f2, char** bufp, size_t* sizep){
         }
     }
     // Search for fields which are present in f2 but not in f1
-    fseek(f1, f10+64, SEEK_SET); 
+    fseek(f1, f10+64, SEEK_SET);
     fseek(f2, f20+64, SEEK_SET);
     while(1){
         int bytesread = 0;
@@ -150,7 +154,7 @@ void reb_binary_diff(FILE* f1, FILE* f2, char** bufp, size_t* sizep){
         }
         struct reb_binary_field field1;
         bytesread = fread(&field1,sizeof(struct reb_binary_field),1,f1);
-        
+
         if (field1.type==field2.type){
             // Not a new field. Skip.
             fseek(f1, field1.size, SEEK_CUR); // For next search
@@ -160,7 +164,7 @@ void reb_binary_diff(FILE* f1, FILE* f2, char** bufp, size_t* sizep){
         // Fields might not be in the same order.
         // Will search for element in f1, starting at beginning just past header
         fseek(f1, f10+64, SEEK_SET);
-        int notfound = 0; 
+        int notfound = 0;
         while(1) {
             bytesread = fread(&field1,sizeof(struct reb_binary_field),1,f1);
             if (bytesread == 0){
