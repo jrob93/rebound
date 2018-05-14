@@ -2,7 +2,7 @@
  * @file 	particle.c
  * @brief 	reb_particle structure and main particle routines.
  * @author 	Hanno Rein <hanno@hanno-rein.de>
- * 
+ *
  * @section 	LICENSE
  * Copyright (c) 2011 Hanno Rein, Shangfei Liu
  *
@@ -40,7 +40,7 @@
 #endif // MPI
 
 #ifdef GRAVITY_GRAPE
-#warning Fix this. 
+#warning Fix this.
 extern double gravity_minimum_mass;
 #endif // GRAVITY_GRAPE
 
@@ -57,7 +57,7 @@ static void reb_add_local(struct reb_simulation* const r, struct reb_particle pt
 
 	r->particles[r->N] = pt;
 	r->particles[r->N].sim = r;
-	if (r->gravity==REB_GRAVITY_TREE || r->collision==REB_COLLISION_TREE){
+	if (r->gravity==REB_GRAVITY_TREE || r->collision==REB_COLLISION_TREE || r->collision==REB_COLLISION_LINE_TREE){
         if (r->root_size==-1){
             reb_error(r,"root_size is -1. Make sure you call reb_configure_box() before using a tree based gravity or collision solver.");
             return;
@@ -88,7 +88,7 @@ void reb_add(struct reb_simulation* const r, struct reb_particle pt){
 	int root_n_per_node = r->root_n/r->mpi_num;
 	int proc_id = rootbox/root_n_per_node;
 	if (proc_id != r->mpi_id && r->N >= r->N_active){
-		// Add particle to array and send them to proc_id later. 
+		// Add particle to array and send them to proc_id later.
 		reb_communication_mpi_add_particle_to_send_queue(r,pt,proc_id);
 		return;
 	}
@@ -114,7 +114,7 @@ int reb_get_particle_index(struct reb_particle* p){
 		i++;
 		if(i>=N){
 			return -1;	// p not in simulation.  Shouldn't happen unless you mess with p.sim after creating the particle
-		}	
+		}
 	}
 	return i;
 }
@@ -150,7 +150,7 @@ static struct reb_particle* reb_search_lookup_table(struct reb_simulation* const
 }
 
 static int compare_hash(const void* a, const void* b){
-    struct reb_hash_pointer_pair* ia = (struct reb_hash_pointer_pair*)a; 
+    struct reb_hash_pointer_pair* ia = (struct reb_hash_pointer_pair*)a;
     struct reb_hash_pointer_pair* ib = (struct reb_hash_pointer_pair*)b;
     return (ia->hash > ib->hash) - (ia->hash < ib->hash); // to avoid overflow possibilities
 }
@@ -175,7 +175,7 @@ static void reb_update_particle_lookup_table(struct reb_simulation* const r){
                 r->particle_lookup_table[zerohash].index = i;
             }
         }
-        else{                   
+        else{
             r->particle_lookup_table[N_hash].hash = particles[i].hash;
             r->particle_lookup_table[N_hash].index = i;
             N_hash++;
@@ -186,7 +186,7 @@ static void reb_update_particle_lookup_table(struct reb_simulation* const r){
 }
 
 struct reb_particle* reb_get_particle_by_hash(struct reb_simulation* const r, uint32_t hash){
-    struct reb_particle* p; 
+    struct reb_particle* p;
     p = reb_search_lookup_table(r, hash);
     if (p == NULL){
         reb_update_particle_lookup_table(r);
@@ -214,22 +214,22 @@ int reb_remove(struct reb_simulation* const r, int index, int keepSorted){
     if (r->ri_hermes.global){
         // This is a mini simulation. Need to remove particle from two simulations.
         struct reb_simulation* global = r->ri_hermes.global;
-        
+
         //remove from global and update global arrays
         int global_index = global->ri_hermes.global_index_from_mini_index[index];
         reb_remove(global,global_index,1);
-        
+
         //Shifting array values (filled with 0/1)
         for(int k=global_index;k<global->N;k++){
             global->ri_hermes.is_in_mini[k] = global->ri_hermes.is_in_mini[k+1];
         }
-        
+
         //Shifting array values (filled with index values)
         global->ri_hermes.global_index_from_mini_index_N--;
         for(int k=index;k<global->ri_hermes.global_index_from_mini_index_N;k++){
             global->ri_hermes.global_index_from_mini_index[k] = global->ri_hermes.global_index_from_mini_index[k+1];
         }
-        
+
         //Depreciating all index values larger than global_index
         for(int k=0;k<global->ri_hermes.global_index_from_mini_index_N;k++){
             if(global->ri_hermes.global_index_from_mini_index[k] > global_index){
@@ -266,7 +266,7 @@ int reb_remove(struct reb_simulation* const r, int index, int keepSorted){
 			rim->encounterIndicies[j] = rim->encounterIndicies[j+1];
 			rim->rhill[j] = rim->rhill[j+1];
 		}
-        // Update additional parameter for local 
+        // Update additional parameter for local
 		for(int j=index; j<r->N-1; j++){
 			rim->encounterRhill[j] = rim->encounterRhill[j+1];
 		}

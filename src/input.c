@@ -2,7 +2,7 @@
  * @file    input.c
  * @brief   Parse command line options and read retart files.
  * @author  Hanno Rein <hanno@hanno-rein.de>
- * 
+ *
  * @section     LICENSE
  * Copyright (c) 2011 Hanno Rein, Shangfei Liu
  *
@@ -134,7 +134,7 @@ void reb_read_dp7(struct reb_dp7* dp7, const int N3, FILE* inf){
         fread(valueref.p6, field.size/7,1,inf);\
     }\
     break;
-    
+
 int reb_input_field(struct reb_simulation* r, FILE* inf, enum reb_input_binary_messages* warnings){
     struct reb_binary_field field;
     int numread = fread(&field,sizeof(struct reb_binary_field),1,inf);
@@ -252,7 +252,7 @@ int reb_input_field(struct reb_simulation* r, FILE* inf, enum reb_input_binary_m
                 r->particles[l].ap = NULL;
                 r->particles[l].sim = r;
             }
-            if (r->gravity==REB_GRAVITY_TREE || r->collision==REB_COLLISION_TREE){
+            if (r->gravity==REB_GRAVITY_TREE || r->collision==REB_COLLISION_TREE || r->collision==REB_COLLISION_LINE_TREE){
                 for (int l=0;l<r->allocatedN;l++){
                     reb_tree_add_particle_to_tree(r, l);
                 }
@@ -332,7 +332,7 @@ int reb_input_field(struct reb_simulation* r, FILE* inf, enum reb_input_binary_m
                 char readbuf[bufsize], curvbuf[bufsize];
                 const char* header = "REBOUND Binary File. Version: ";
                 sprintf(curvbuf,"%s%s",header+sizeof(struct reb_binary_field), reb_version_str);
-                
+
                 objects += fread(readbuf,sizeof(char),bufsize,inf);
                 // Note: following compares version, but ignores githash.
                 if(strncmp(readbuf,curvbuf,bufsize)!=0){
@@ -348,11 +348,11 @@ int reb_input_field(struct reb_simulation* r, FILE* inf, enum reb_input_binary_m
             break;
     }
     return 1;
-} 
+}
 
 void reb_create_simulation_from_binary_with_messages(struct reb_simulation* r, char* filename, enum reb_input_binary_messages* warnings){
-    FILE* inf = fopen(filename,"rb"); 
-    
+    FILE* inf = fopen(filename,"rb");
+
     if (!inf){
         *warnings |= REB_INPUT_BINARY_ERROR_NOFILE;
         return;
@@ -361,7 +361,7 @@ void reb_create_simulation_from_binary_with_messages(struct reb_simulation* r, c
     reb_reset_temporary_pointers(r);
     reb_reset_function_pointers(r);
     r->simulationarchive_filename = NULL;
-    
+
     // reb_create_simulation sets simulationarchive_version to 2 by default.
     // This will break reading in old version.
     // Set to old version by default. Will be overwritten if new version was used.
@@ -420,4 +420,3 @@ struct reb_simulation* reb_create_simulation_from_binary(char* filename){
     r = reb_input_process_warnings(r, warnings);
     return r;
 }
-
