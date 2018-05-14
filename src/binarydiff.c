@@ -2,7 +2,7 @@
  * @file    binarydiff.c
  * @brief   Binary diff allows to compare binary snapshots.
  * @author  Hanno Rein <hanno@hanno-rein.de>
- *
+ * 
  * @section     LICENSE
  * Copyright (c) 2018 Hanno Rein
  *
@@ -34,7 +34,6 @@
 #include "tools.h"
 #include "output.h"
 #include "binarydiff.h"
-#include "memstream.h"
 
 
 
@@ -43,7 +42,7 @@ void reb_binary_diff(char* buf1, size_t size1, char* buf2, size_t size2, char** 
         printf("Cannot read input buffers.\n");
         return;
     }
-
+    
     *bufp = NULL;
     *sizep = 0;
     size_t allocatedsize = 0;
@@ -55,7 +54,7 @@ void reb_binary_diff(char* buf1, size_t size1, char* buf2, size_t size2, char** 
 
     size_t pos1 = 64;
     size_t pos2 = 64;
-
+    
     while(1){
         if (pos1+sizeof(struct reb_binary_field)>size1) break;
         struct reb_binary_field field1 = *(struct reb_binary_field*)(buf1+pos1);
@@ -66,13 +65,13 @@ void reb_binary_diff(char* buf1, size_t size1, char* buf2, size_t size2, char** 
         if (pos2+sizeof(struct reb_binary_field)>size2) pos2 = 64;
         struct reb_binary_field field2 = *(struct reb_binary_field*)(buf2+pos2);
         pos2 += sizeof(struct reb_binary_field);
-
+        
         // Fields might not be in the same order.
         if (field1.type!=field2.type){
             // Will search for element in buf2, starting at beginning just past header
-            // Note that we ignore all ADDITIONAL fields in buf2 that were not present in buf1
+            // Note that we ignore all ADDITIONAL fields in buf2 that were not present in buf1 
             pos2 = 64;
-            int notfound = 0;
+            int notfound = 0; 
             while(1) {
                 if (pos2+sizeof(struct reb_binary_field)>size2){
                     notfound = 1;
@@ -130,7 +129,7 @@ void reb_binary_diff(char* buf1, size_t size1, char* buf2, size_t size2, char** 
         if (pos1+sizeof(struct reb_binary_field)>size1) pos1 = 64;
         struct reb_binary_field field1 = *(struct reb_binary_field*)(buf1+pos1);
         pos1 += sizeof(struct reb_binary_field);
-
+        
         if (field1.type==field2.type){
             // Not a new field. Skip.
             pos1 += field1.size;
@@ -140,7 +139,7 @@ void reb_binary_diff(char* buf1, size_t size1, char* buf2, size_t size2, char** 
         // Fields might not be in the same order.
         // Will search for element in buf1, starting at beginning just past header
         pos1 = 64;
-        int notfound = 0;
+        int notfound = 0; 
         while(1) {
             if (pos1+sizeof(struct reb_binary_field)>size1){
                 notfound = 1;

@@ -50,6 +50,9 @@ static void reb_tree_get_N_nearest_neighbours_in_cell(struct reb_simulation* con
 
 char name[64];
 int iter=-1;
+int NN_search=100;
+int nearest_neighbour_list[100]={-1};
+int nearest_neighbour_index;
 
 void reb_collision_search(struct reb_simulation* const r){
 	const int N = r->N;
@@ -387,7 +390,7 @@ void reb_collision_search(struct reb_simulation* const r){
 				iter++;
 				printf("\niter = %d\n", iter);
 				// sprintf(name,"particle_ints_small_%03d.txt",iter); // collision file is created with restart numbers
-				sprintf(name,"particle_ints_big_%03d.txt",iter); // collision file is created with restart numbers
+				sprintf(name,"particle_ints%03d.txt",iter); // collision file is created with restart numbers
 				printf("%s\n",name);
 				FILE* of = fopen(name,"w"); //writes to file, not append!
 				// FILE *of;
@@ -421,9 +424,64 @@ void reb_collision_search(struct reb_simulation* const r){
 					for (int ri=0;ri<r->root_n;ri++){
 						struct reb_treecell* rootcell = r->tree_root[ri];
 						if (rootcell!=NULL){
+
+							// initialise nearest neighbour list and index
+							// nearest_neighbour_list[100];
+							memset(nearest_neighbour_list,-1,sizeof nearest_neighbour_list);
+							nearest_neighbour_index=0;
+
+							for(int j = 0; j < NN_search; j++) {
+										printf("%d ", nearest_neighbour_list[j]);
+								}
+
 							reb_tree_get_N_nearest_neighbours_in_cell(r, &collisions_N, gb, gbunmod,ri,p1_r,&nearest_r2,&collision_nearest,rootcell);
+
+							for(int j = 0; j < NN_search; j++) {
+										printf("%d ", nearest_neighbour_list[j]);
+								}
+
 						}
 					}
+
+					// -----
+					// We have found the nearest neighbours, now search them with the line detection for collisions
+					// for (int j=i+1;j<N;j++){
+					// 	struct reb_particle p2 = particles[j];
+					// 	double ax = gb.shiftx - p2.x;
+					// 	double ay = gb.shifty - p2.y;
+					// 	double az = gb.shiftz - p2.z;
+					// 	double dx = (gb.shiftvx - p2.vx);
+					// 	double dy = (gb.shiftvy - p2.vy);
+					// 	double dz = (gb.shiftvz - p2.vz);
+					// 							double dn2 = dx*dx + dy*dy + dz*dz;
+					// 	double sr2 = (p1.r + p2.r)*(p1.r + p2.r);
+					// 							double a = dn2;
+					// 							double b = 2.*(ax*dx + ay*dy + az*dz);
+					// 							double c = ax*ax + ay*ay + az*az - sr2;
+					// 							double s = sqrt(b*b-4.*a*c);
+					// 							double t1 = (-b+s)/(2.*a);
+					// 							double t2 = (-b-s)/(2.*a);
+					// 							double tmin = MIN(t1,t2);
+					// 							// No relative motion
+					// 							if (dn2<1e-30) continue;
+					// 							// Check if a collision occured in the last timestep
+					// 							// - checks if first contact was in last timestep (ignore second contact to avoid double counting)
+					// 							// - only works for forward integrations
+					// 							if ( tmin<-dt_last_done || tmin>0. || isnan(tmin) ) continue;
+					// 	// Add particles to collision array.
+					// 	if (r->collisions_allocatedN<=collisions_N){
+					// 		// Allocate memory if there is no space in array.
+					// 		// Init to 32 if no space has been allocated yet, otherwise double it.
+					// 		r->collisions_allocatedN = r->collisions_allocatedN ? r->collisions_allocatedN * 2 : 32;
+					// 		r->collisions = realloc(r->collisions,sizeof(struct reb_collision)*r->collisions_allocatedN);
+					// 	}
+					// 	r->collisions[collisions_N].p1 = i;
+					// 	r->collisions[collisions_N].p2 = j;
+					// 	r->collisions[collisions_N].gb = gborig;
+					// 	collisions_N++;
+					// }
+					// -----
+
 				}
 				}
 				}
@@ -820,6 +878,12 @@ int reb_collision_resolve_merge(struct reb_simulation* const r, struct reb_colli
  * @param collisions_N Pointer to current number of collisions
  * @param gbunmod Ghostbox unmodified
  */
+
+ // This function searches for the nearest neighbours that may possibly collide with the reference particle
+ // 'if (r2 > *nearest_r2) return;' ensures that only the closest particles are found
+ // 'if (dvx*dx + dvy*dy + dvz*dz >0) return;' only approaching particles can collide
+ // We remove the check for descent into daughter cells, 'if (r2 < rp*rp )', as nearest neighbours may be missed. IS THIS A BUG?
+
 static void reb_tree_get_N_nearest_neighbours_in_cell(struct reb_simulation* const r, int* collisions_N, struct reb_ghostbox gb, struct reb_ghostbox gbunmod, int ri, double p1_r, double* nearest_r2, struct reb_collision* collision_nearest, struct reb_treecell* c){
 
 	const struct reb_particle* const particles = r->particles;
@@ -861,7 +925,7 @@ static void reb_tree_get_N_nearest_neighbours_in_cell(struct reb_simulation* con
 			double dz = gb.shiftz - p2.z;
 			double r2 = dx*dx+dy*dy+dz*dz;
 			// A closer neighbour has already been found
-			//if (r2 > *nearest_r2) return;
+			if (r2 > *nearest_r2) return;
 			double rp = p1_r+p2.r;
 			// // reb_particles are not overlapping
 			// if (r2 > rp*rp) return;
@@ -869,18 +933,23 @@ static void reb_tree_get_N_nearest_neighbours_in_cell(struct reb_simulation* con
 			double dvy = gb.shiftvy - p2.vy;
 			double dvz = gb.shiftvz - p2.vz;
 			// // reb_particles are not approaching each other
-			// if (dvx*dx + dvy*dy + dvz*dz >0) return;
+			if (dvx*dx + dvy*dy + dvz*dz >0) return;
 			// // Found a new nearest neighbour. Save it for later.
-			// *nearest_r2 = r2;
+			*nearest_r2 = r2;
 			// collision_nearest->ri = ri;
 			// collision_nearest->p2 = c->pt;
 			// collision_nearest->gb = gbunmod;
-			printf("t = %e, r2 = %e, ri = %d, c->pt = %d, gb = %d\n",r->t, r2, ri, c->pt, gbunmod);
+			// printf("t = %e, r2 = %e, ri = %d, c->pt = %d, gb = %d\n",r->t, r2, ri, c->pt, gbunmod);
 
 			FILE *of;
 			of = fopen(name,"a");
 			fprintf(of, "%d\t%e\n", c->pt,r2);
 			fclose(of);
+
+// store particle index
+printf("nearest_neighbour_index %d\n", nearest_neighbour_index);
+nearest_neighbour_list[nearest_neighbour_index]=c->pt;
+nearest_neighbour_index++;
 
 			// Save collision in collisions array.
 // #pragma omp critical
