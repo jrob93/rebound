@@ -34,6 +34,7 @@
 #include "tools.h"
 #include "output.h"
 #include "binarydiff.h"
+#include "memstream.h"
 
 
 

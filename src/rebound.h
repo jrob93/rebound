@@ -866,6 +866,7 @@ struct reb_simulation {
         REB_COLLISION_TREE = 2,     ///< Tree based collision search O(N log(N))
         REB_COLLISION_MERCURIUS = 3,///< Direct collision search optimized for MERCURIUS
         REB_COLLISION_LINE = 4,     ///< Direct collision search O(N^2), looks for collisions by assuming a linear path over the last timestep
+        REB_COLLISION_LINE_TREE = 5,
         } collision;
     /**
      * @brief Available integrators

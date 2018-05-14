@@ -39,6 +39,8 @@
 #include "input.h"
 #include "output.h"
 #include "integrator_ias15.h"
+#include "fmemopen.h"
+#include "memstream.h"
 
 #include "fmemopen.h"
 
