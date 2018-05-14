@@ -44,6 +44,11 @@
  * ----------------------------------------------------------------------------
  */
 
+#ifdef __APPLE__
+#include <Availability.h>
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 101300
+// code to run up through 10.12.4
+
 #include "memstream.h"
 
 #if _POSIX_C_SOURCE < 200809L
@@ -55,6 +60,9 @@
 #include <assert.h>
 
 #define min(X, Y) (((X) < (Y)) ? (X) : (Y))
+#define STRING2(x) #x
+#define STRING(x) STRING2(x)
+#pragma message "Compiling for old MacOSX Version " STRING(__MAC_OS_X_VERSION_MIN_REQUIRED)
 
 struct memstream
 {
@@ -175,3 +183,5 @@ FILE *open_memstream(char **ptr, size_t *sizeloc)
 }
 
 #endif /* _POSIX_C_SOURCE < 200809L */
+#endif // __MAC_OS_X_VERSION_MIN_REQUIRED
+#endif // __APPLE__
